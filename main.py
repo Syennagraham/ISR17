@@ -8,7 +8,7 @@ from numpy import interp
 import threading
 import random
 
-arduino = serial.Serial('/dev/cu.usbmodem1201', 9600, timeout=.1)
+#arduino = serial.Serial('/dev/cu.usbmodem1201', 9600, timeout=.1)
 
 # MINOR DISPLAY SETUP ITEMS
 root = Tk()  # initialize root variable
@@ -269,7 +269,7 @@ def get_random_xy_coord():
 
 if '__main__' == __name__:
     # heading elements
-    th = threading.Thread(target=gyro_sensor, args=(),  daemon=True)
+    th = threading.Thread(target=get_random_xy_coord, args=(),  daemon=True)
     th.start()
 
     update_gui()
