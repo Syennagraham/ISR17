@@ -8,13 +8,22 @@ from numpy import interp
 import threading
 import random
 
-#arduino = serial.Serial('/dev/cu.usbmodem1201', 9600, timeout=.1)
+gyro_coord = [0,0] 
+gyro_list = [0,0]
+depth = 0
+psv = 0
+ps_value = 0
+rpm_value = 0 
+rpm_graphic_coord = 0
+depth_graphic_coord = 0
+
+
+######### DASHBOARD DISPLAY ITEMS ######################################################################################
 
 # MINOR DISPLAY SETUP ITEMS
 root = Tk()  # initialize root variable
 root.geometry("800x480")  # root sized to hdmi monitor
 root.title('Nautilus HUD')
-
 
 # STYLE CONFIGURATION
 root.style = ttk.Style(root)
@@ -27,21 +36,11 @@ root.columnconfigure(1, weight=1)
 root.rowconfigure(1, weight=3)
 root.rowconfigure(2, weight=2)
 
-
 # HEADING DISPLAY SETUP
 HEIGHT = 200
 WIDTH = 200
 RADIUS = 30
 TAG = "cir"
-
-decode_rpms = 0
-gyro_coord = [0,0] 
-rpmA = 0
-depth = 0
-depth_indicator = 0
-decode_ps_voltage = 0
-psv = 0
-
 # labels
 heading_label = ttk.Label(root, text='HEADING', style='title.TLabel').grid(column=0, row=0, sticky='n')
 heading_up = ttk.Label(root, text='UP', style='.TLabel').grid(column=0, row=1, sticky='n')
@@ -74,29 +73,45 @@ RPM_label = ttk.Label(root, text='RPM', style='title.TLabel').grid(column=0, row
 # canvas items
 RPM_canvas = Canvas(root, height=100, width=550)
 RPM_canvas.create_rectangle(550, 3, 3, 100, width='3')
-RPM_bar = RPM_canvas.create_rectangle(rpmA, 3, 3, 100, fill='#FFCC00')
+RPM_bar = RPM_canvas.create_rectangle(rpm_value, 3, 3, 100, fill='#FFCC00')
 RPM_canvas.grid(column=0, row=2)
 
 
-# READ ARDUINO 
-# read arduino data
+# change color of circle on display according to value
+def get_circle_color(x, y, radius):
+    #check if coordinate is with in radius of origin
+    if  radius > int(sqrt( pow(abs(x-(WIDTH/2)), 2) + pow(abs(y-(HEIGHT/2)), 2))): 
+        return 'green'
+    elif radius * 2 < int(sqrt( pow(abs(x-(WIDTH/2)), 2) + pow(abs(y-(HEIGHT/2)), 2))): 
+        return 'red'
+    else:
+        return 'yellow'
+
+
+# create circle element for display
+def create_circle(x, y, r, canvasName, t):
+    color = get_circle_color(x,y,r)
+    canvasName.create_oval(x-r, y-r, x+r, y+r, fill=color, tags=t)
+    root.update()
+
+
+# delete circle element for display
+def delete_circle(canvasName, tag):
+    canvasName.delete(tag)
+    root.update()
+
+
+
+######### CONNECT WITH ARDUINO ######################################################################################
+
+arduino = serial.Serial('/dev/cu.usbmodem1101', 9600, timeout=.1)
+
 def read_arduino():
+    #return b'100#50#90#20' #testing
     return arduino.readline()[:-2] #the last bit gets rid of the new-line chars
 
 
-# PRESSURE SENSOR
-# read pressure sensor data
-def pressure_sensor():
-    while True:
-        ps_voltage = read_arduino()
-        if ps_voltage == b'':
-            continue
-        else:
-            decode_ps_voltage = int(ps_voltage.decode('utf8')) #0 -1023
-            print("Pressure Sensor Voltage Bytes= ", decode_ps_voltage)
-            depth_coord = convert_volts_to_coord(decode_ps_voltage) # 400 - 0
-            return depth_coord, decode_ps_voltage
-
+######### INTERPRET PRESSURE SENSOR ######################################################################################
 
 # convert pressure sensor voltage to coordinates for canvas display
 def convert_volts_to_coord(psv_data):
@@ -118,28 +133,15 @@ def calculate_depth(psv_data):
     density = 997.453 #kg/m^3
     voltage= 0.5 + 4.5 * ((psv_data-0)/(1023-0)) #convert bytes to voltage
     #print("Pressure Sensor Voltage = ", voltage)
-
     pressure_kpascal = (3.0*(voltage-0.47))*1000.0
     #print("Pressure (kPA)= ", pressure_kpascal)   
-
     depth_meters = round(pressure_kpascal/( gravity * density), 2)
     #print("Depth Value (m) = ", depth_meters)
     return depth_meters
 
 
-# RPM SENSOR
-# read rpm sensor data
-def rpm_sensor():
-    while True:
-        rpm_value = read_arduino()
-        if rpm_value == b'':
-            continue
-        else:
-            decode_rpms = int(rpm_value.decode('utf8')) #0-250
-            rpms = convert_rpms_to_coord(decode_rpms) #3-550
-            print(rpms)
-            return rpms
 
+######### INTERPRET RPM SENSOR ######################################################################################
 
 # convert rpm value to coordinate for display
 def convert_rpms_to_coord(data):
@@ -153,92 +155,53 @@ def convert_rpms_to_coord(data):
         return int(abs(rpm_indicator))
 
 
-# GYRO SENSOR
-# read gyro sensor data
-def gyro_sensor():
-    global gyro_coord
-    while True:
-        data = read_arduino()
-        print(data)
-        gs_string = (data.decode('utf8'))
-        if (data == b'') or (re.match( r'^\.' or r'^\>', gs_string)):  
-            print('data2 ', data)
-            continue
-        else: 
-            round_inc = map_gyro_to_graphic(gs_string)
-            gyro_coord = convert_gyro_to_coord(round_inc)
-            print('x, y', gyro_coord)
-
-
-# change color of circle on display according to value
-def get_circle_color(x, y, radius):
-    #check if coordinate is with in radius of origin
-    if  radius > int(sqrt( pow(abs(x-(WIDTH/2)), 2) + pow(abs(y-(HEIGHT/2)), 2))): 
-        return 'green'
-    elif   radius * 2 < int(sqrt( pow(abs(x-(WIDTH/2)), 2) + pow(abs(y-(HEIGHT/2)), 2))): 
-        return 'red'
-    else:
-        return 'yellow'
-
-
-# create circle element for display
-def create_circle(x, y, r, canvasName, t):
-    color = get_circle_color(x,y,r)
-    canvasName.create_oval(x-r, y-r, x+r, y+r, fill=color, tags=t)
-    root.update()
-
-
-# delete circle element for display
-def delete_circle(canvasName, tag):
-    canvasName.delete(tag)
-    root.update()
-
+######### INTERPRET GYRO SENSOR ######################################################################################
 
 # map incoming gryo bytes to 1 - 9 
-def map_gyro_to_graphic(data):
-    gs_list = []
-    for x in data.split('#'):
-        if float(x) > 90.0:
-            gs_list.append(90)
-        elif float(x) < -90.0:
-            gs_list.append(-90)
-        else:
-            gs_list.append(float(x))
-    
-    print('gs_list', gs_list)
-    rounded_gs_indicator = [int(round(gs_list[2])/10), int(round(gs_list[3])/10)]
-    print('rounded_gs_indicator = ', rounded_gs_indicator)
-    return rounded_gs_indicator 
+def filter_gyro_coord(data): 
+    if data[2] > 90.0:
+        data[2] = 90
+    elif data[2] < -90:
+        data[2] = -90
+    else:
+        data[2] = data[2]
+
+    if data[3] > 90.0:
+        data[3] = 90
+    elif data[3] < -90:
+        data[3] = -90
+    else:
+        data[3] = data[3]
+    return data 
 
 
 # convert mapped gyro data to coordinates for display
 def convert_gyro_to_coord(data):
-    y = interp(data[0],[-9,9],[50,150])
-    x = interp(data[1],[-9,9],[150,50])
-    print('pitch, yaw', int(x), int(y))
-    return int((x)), int((y))
+    print('convert_gyro_to_coord(data): ', data)
+    y = interp(int(data[2]/10),[-9,9],[150,50])
+    x = interp(int(data[3]/10),[-9,9],[50,150])
+    gyro_list = [int(x), int(y)]
+    return gyro_list
 
 
-# update dashboard
+######### DISPLAY AND UPDATE DASHBOARD ITEMS ######################################################################################
+
 def gyro_dashboard():
     delete_circle(heading_canvas, TAG)
-    create_circle(gyro_coord[0], gyro_coord[1], RADIUS, heading_canvas, TAG)
+    create_circle(gyro_list[0], gyro_list[1], RADIUS, heading_canvas, TAG)
 
 
 def rpm_dashboard():
-    #decode_rpms, rpmA = rpm_sensor()
-    RPM_canvas.coords(RPM_bar, rpmA, 3, 3, 100)
-    RPM_value = ttk.Label(root, text=decode_rpms, style='.TLabel').place(x=20, y=410, anchor='w')
+    RPM_canvas.coords(RPM_bar, rpm_graphic_coord, 3, 3, 100)
+    RPM_value = ttk.Label(root, text=rpm_value, style='.TLabel').place(x=20, y=410, anchor='w')
 
 
 def depth_dashboard():
-    #depth_indicator, psv = pressure_sensor()
-    depth = calculate_depth(psv)
-    depth_canvas.coords(depth_bar, 3, 400, 100, depth_indicator)
+    depth = calculate_depth(ps_value)
+    depth_canvas.coords(depth_bar, 3, 400, 100, depth_graphic_coord)
     depth_value = ttk.Label(root, text=str(depth), style='.TLabel').place(x=730, y=25, anchor='n')
 
 
-# DYNAMIC ELEMENTS LOOP
 def update_gui():
     while True:
         gyro_dashboard()
@@ -246,30 +209,71 @@ def update_gui():
         depth_dashboard()
         time.sleep(0.1)
 
+# FOR TESTING
+# def get_random_xy_coord():
+#     global gyro_coord
+#     global rpmA
+#     global decode_rpms
+#     global depth_indicator
+#     global decode_ps_voltage
+#     while True:
+#         time.sleep(0.5)
+#         data = [random.randrange(-9,9,1), random.randrange(-9,9,1)]
+#         gyro_coord = convert_gyro_to_coord(data)
 
-def get_random_xy_coord():
-    global gyro_coord
-    global rpmA
-    global decode_rpms
-    global depth_indicator
-    global decode_ps_voltage
+#         decode_rpms = random.randrange(0, 250)
+#         rpmA = interp(decode_rpms,[0,250],[3,550])
+
+#         decode_ps_voltage = random.randrange(0,1023)
+#         depth_indicator = convert_volts_to_coord(decode_ps_voltage) 
+
+
+def read_sensor_data():
+    global ps_value
+    global rpm_value
+    global depth_graphic_coord
+    global rpm_graphic_coord
+    global gyro_list
+    serial_list = []
+
     while True:
-        time.sleep(0.5)
-        data = [random.randrange(-9,9,1), random.randrange(-9,9,1)]
-        gyro_coord = convert_gyro_to_coord(data)
+        data = read_arduino()
+        print('data: ', data)        
+        serial_string = (data.decode('utf8'))
+        
+        if (data == b'') or (re.match( r'^\.' or r'^\>', serial_string)):  
+            print('data2 ', data)
+            continue
+        else:    
+            for x in serial_string.split('#'):
+                serial_list.append(float(x)) 
+            print('serial data list: ', serial_list)
+            
+            filtered_gyro_values = filter_gyro_coord(serial_list) # make sure gyro data is between -90 and 90
+            print('serial list with filtered gyro values: ', filtered_gyro_values) 
+            print('')
 
-        decode_rpms = random.randrange(0, 250)
-        rpmA = interp(decode_rpms,[0,250],[3,550])
+            gyro_list = convert_gyro_to_coord(filtered_gyro_values)
+            print('gyro_list: ', gyro_list, '- mapped from [-9,9],[50,150] and [-9,9],[150,50]') 
 
-        decode_ps_voltage = random.randrange(0,1023)
-        depth_indicator = convert_volts_to_coord(decode_ps_voltage) 
+            ps_value = serial_list[0]
+            depth_graphic_coord = convert_volts_to_coord(ps_value)
+            print('ps_coord: ', depth_graphic_coord, ' - mapped from [0,1023] to [400,100]') 
 
-
+            rpm_value = serial_list[1]
+            rpm_graphic_coord = convert_rpms_to_coord(rpm_value)
+            print('rpm_graphic_coord: ', rpm_graphic_coord, '- mapped from [0,250] to [3,550]') 
+            print('')
+            print('')
+            serial_list = []
        
 
 if '__main__' == __name__:
     # heading elements
-    th = threading.Thread(target=get_random_xy_coord, args=(),  daemon=True)
+
+    # random data testing 
+    #th = threading.Thread(target=get_random_xy_coord, args=(),  daemon=True)
+    th = threading.Thread(target=read_sensor_data, args=(),  daemon=True)
     th.start()
 
     update_gui()
