@@ -1,4 +1,6 @@
+#!/usr/bin/python3
 import re
+import os
 import time
 import serial
 from tkinter import *
@@ -8,7 +10,7 @@ from numpy import interp
 import threading
 import random
 
-gyro_coord = [0,0] 
+USB = '/dev/ttyACM0'
 gyro_list = [0,0]
 depth = 0
 psv = 0
@@ -17,6 +19,13 @@ rpm_value = 0
 rpm_graphic_coord = 0
 depth_graphic_coord = 0
 
+
+######### CONNECT WITH ARDUINO ######################################################################################
+
+arduino = serial.Serial(USB, 9600, timeout=.1)
+
+def read_arduino():
+    return arduino.readline()[:-2] #the last bit gets rid of the new-line chars
 
 ######### DASHBOARD DISPLAY ITEMS ######################################################################################
 
@@ -102,15 +111,6 @@ def delete_circle(canvasName, tag):
 
 
 
-######### CONNECT WITH ARDUINO ######################################################################################
-
-arduino = serial.Serial('/dev/cu.usbmodem1101', 9600, timeout=.1)
-
-def read_arduino():
-    #return b'100#50#90#20' #testing
-    return arduino.readline()[:-2] #the last bit gets rid of the new-line chars
-
-
 ######### INTERPRET PRESSURE SENSOR ######################################################################################
 
 # convert pressure sensor voltage to coordinates for canvas display
@@ -120,7 +120,7 @@ def convert_volts_to_coord(psv_data):
     elif psv_data <= 0:
         return 400
     else:
-        print('psv_data ', psv_data)
+        # print('psv_data ', psv_data)
         # change these voltages for the pool voltages 0(0.5V) - 1023(4.5V)
         depth_indicator = interp(psv_data,[0,1023],[400,100])
         return int(depth_indicator)
@@ -210,22 +210,24 @@ def update_gui():
         time.sleep(0.1)
 
 # FOR TESTING
-# def get_random_xy_coord():
-#     global gyro_coord
-#     global rpmA
-#     global decode_rpms
-#     global depth_indicator
-#     global decode_ps_voltage
-#     while True:
-#         time.sleep(0.5)
-#         data = [random.randrange(-9,9,1), random.randrange(-9,9,1)]
-#         gyro_coord = convert_gyro_to_coord(data)
+def get_random_xy_coord():
+    global gyro_coord
+    global rpmA
+    global decode_rpms
+    global depth_indicator
+    global decode_ps_voltage
+    while True:
+        time.sleep(0.5)
+        data = [random.randrange(-9,9,1), random.randrange(-9,9,1)]
+        y = interp(int(data[0]/10),[-9,9],[150,50])
+        x = interp(int(data[1]/10),[-9,9],[50,150])
+        gyro_coord = [int(x), int(y)]
 
-#         decode_rpms = random.randrange(0, 250)
-#         rpmA = interp(decode_rpms,[0,250],[3,550])
+        decode_rpms = random.randrange(0, 250)
+        rpmA = interp(decode_rpms,[0,250],[3,550])
 
-#         decode_ps_voltage = random.randrange(0,1023)
-#         depth_indicator = convert_volts_to_coord(decode_ps_voltage) 
+        decode_ps_voltage = random.randrange(0,1023)
+        depth_indicator = convert_volts_to_coord(decode_ps_voltage) 
 
 
 def read_sensor_data():
@@ -272,8 +274,8 @@ if '__main__' == __name__:
     # heading elements
 
     # random data testing 
-    #th = threading.Thread(target=get_random_xy_coord, args=(),  daemon=True)
-    th = threading.Thread(target=read_sensor_data, args=(),  daemon=True)
+    th = threading.Thread(target=get_random_xy_coord, args=(),  daemon=True)
+    #th = threading.Thread(target=read_sensor_data, args=(),  daemon=True)
     th.start()
 
     update_gui()
