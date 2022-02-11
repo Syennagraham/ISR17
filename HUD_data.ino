@@ -1,21 +1,3 @@
-/* 
- *  This example reads a pressure sensor out to a terminal and an LCD screen (if desired) using Arduino Uno
- *  
- *  Pins from pressure sensor to Arduino
- *  PS Black to Arduino GND
- *  PS Red to Arduino 5V
- *  PS Yellow to Arduino A1
- *  RPM Blue  - Arduino GND
- *  RPM Black - Arduino pin 3
- *  RPM Brown - Arduino 5V
- *  GYRO VCC - Arduino 5V
- *  GYRO GND - Arduino GND
- *  GYRO SCL - ArduinoA5
- *  GYRO SDA - Arduino A4
- *  GYRO INT - Arduino 2
- *  
- */
-
 #include "I2Cdev.h"
 
 #include "MPU6050_6Axis_MotionApps20.h"
@@ -56,25 +38,34 @@ void dmpDataReady() {
 }
  
 const int dataINA = 3; //RPM Sensor
+const int dataINC = 4; //RMP sensor 2
 const int dataINB = A1; //Proximity sensor
+const int dataIND = A3; //Proximity sensor
 
 unsigned long prevmillis; // To store time
 unsigned long duration; // To store time difference
 unsigned long refresh; // To store time for refresh of reading
 
 int rpmA; // RPM from sensor A value
+int rpmB; // RPM from sensor 2 value
+int avg_rpm;
+int pressure_voltage;
 
 boolean currentstateA; // Current state of PSA input scan
 boolean prevstateA; // State of PSA sensor in previous scan
+boolean currentstateB; // Current state of PSA input scan
+boolean prevstateB; // State of PSA sensor in previous scan
 
 void setup() {
     // Set up for the debugging serial monitor
     Serial.begin(9600); //Start serial communication at 9600 for debug statements
 
     pinMode(dataINB,INPUT);
+    pinMode(dataIND,INPUT);
 
     // Set up for the RPM sensor readings
-    pinMode(dataINA,INPUT);       
+    pinMode(dataINA,INPUT);    
+    pinMode(dataINC,INPUT);
     prevmillis = 0;
     prevstateA = LOW;  
     // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -130,25 +121,26 @@ void setup() {
 void loop() {
    pressure();
    Serial.print("#");
-   rpm();
+   rpm_value();
    Serial.print("#");
    gyro();
    delay(20);
 }
 
 
-int pressure() {
+void pressure() {
       int sensorVal=analogRead(dataINB);
-      //Serial.print("Sensor Value: ");
-      Serial.print(sensorVal);
+      int sensorVal2=analogRead(dataIND);
+
+      pressure_voltage = (sensorVal + sensorVal2) / 2;
+      Serial.print(pressure_voltage);
 }
 
 
-int rpm() {
-     
+void rpm_value()
+{   
    // RPMA Measurement
    currentstateA = digitalRead(dataINA); // Read RPMA sensor state
-   //Serial.println(currentstateA);
    if( prevstateA != currentstateA) // If there is change in input
      {
        if( currentstateA == HIGH ) // If input only changes from LOW to HIGH
@@ -164,11 +156,31 @@ int rpm() {
      }
  
     prevstateA = currentstateA; // store this scan (prev scan) data for next scan
-    Serial.print(rpmA);        //Uncomment for debugging RPM A
+  
+   // RPMB Measurement
+   currentstateB = digitalRead(dataINB); // Read PSB sensor state
+   if( prevstateB != currentstateB) // If there is change in input
+     {
+       if( currentstateB == HIGH ) // If input only changes from LOW to HIGH
+         {
+           duration = ( micros() - prevmillis ); // Time difference between revolution in microsecond
+           rpmB = (60000000/duration); // rpm = (1/ time millis)*1000*1000*60;
+           prevmillis = micros(); // store time for next revolution calculation
+         }
+        else
+         {
+           rpmB = 0;
+         }
+     }
+    prevstateB = currentstateB; // store this scan (prev scan) data for next scan
+  
+    // Calculating average rpm 
+    avg_rpm = (rpmA + rpmB) / 2;
+    Serial.print(avg_rpm);
 }
 
 
-int gyro() {
+void gyro() {
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
     // read a packet from FIFO
