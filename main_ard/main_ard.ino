@@ -37,7 +37,7 @@
 MPU6050 mpu;
 
 #define OUTPUT_READABLE_YAWPITCHROLL
-#define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
+#define INTERRUPT_PIN 1  // use pin 2 on Arduino Uno & most boards
 #define LED_PIN 13 // (Arduino is 13, Teensy is 11, Teensy++ is 6)
 bool blinkState = false;
 
@@ -73,10 +73,10 @@ int pd = 250; // Pulse Delay period (Sensativity of motor)
 boolean setPitchDir = LOW; // Set Pitch Direction
 boolean setYawDir = LOW; // Set Pitch Direction
 
-const int dataINA = 3; //RPM Sensor
-const int dataINC = 4; //RMP sensor 2
+const int dataINA = 11; //RPM sensor
+const int dataINC = 12; //RPM sensor 2
 const int dataINB = A1; //Proximity sensor
-const int dataIND = A3; //Proximity sensor
+const int dataIND = A0; //Proximity sensor
 
 unsigned long prevmillis; // To store time
 unsigned long duration; // To store time difference
