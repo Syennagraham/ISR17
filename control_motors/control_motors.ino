@@ -14,24 +14,48 @@
  * One button that will switch the sub into autonomous mode and the sub will make course adjustments using the gyro scope
  * The switch turns the mode on and off
  */
-// Gyro
 // 2 stepper motors (Step Pulse Control and Direction Control)
-// 
-// Defin pins
- 
+
+// Define pins
 #define pitchDirPin 2
 #define pitchStepPin 3
-#define yawDirPin 4
-#define yawStepPin 5
 #define pitchUp 6
 #define pitchDown 7
+
+#define yawDirPin 4
+#define yawStepPin 5
 #define yawLeft 8
 #define yawRight 9
+
  
 // Variables
-int pd = 250; // Pulse Delay period (Sensativity of motor)
+int pd = 250; // Pulse Delay period (Sensitivity of motor)
 boolean setPitchDir = LOW; // Set Pitch Direction
 boolean setYawDir = LOW; // Set Pitch Direction
+
+
+void setup() {
+  pinMode(pitchDirPin, OUTPUT);
+  pinMode(pitchStepPin, OUTPUT);
+  pinMode(yawDirPin, OUTPUT);
+  pinMode(yawStepPin, OUTPUT);
+  
+  pinMode(pitchUp, INPUT);
+  pinMode(pitchDown, INPUT);
+  pinMode(yawLeft, INPUT);
+  pinMode(yawRight, INPUT);
+}
+
+
+void loop() {
+  checkPitchUp();
+  checkPitchDown();
+  checkYawLeft();
+  checkYawRight();
+  // checkAutonomous();
+}
+
+
 void checkPitchUp() {
   boolean mode = digitalRead(pitchUp);
   if (mode == HIGH) {
@@ -51,6 +75,8 @@ void checkPitchUp() {
     return;
   }
 }
+
+
 void checkPitchDown() {
   boolean mode = digitalRead(pitchDown);
   if (mode == HIGH) {
@@ -70,6 +96,8 @@ void checkPitchDown() {
     return;
   }
 }
+
+
 void checkYawLeft() {
   boolean mode = digitalRead(yawLeft);
   if (mode == HIGH) {
@@ -89,6 +117,8 @@ void checkYawLeft() {
     return;
   }
 }
+
+
 void checkYawRight() {
   boolean mode = digitalRead(yawRight);
   if (mode == HIGH) {
@@ -108,25 +138,6 @@ void checkYawRight() {
     return;
   }
 }
-/*
- * void checkAuthnomous() {
- * 
- * }
- */
-void setup() {
-  pinMode (pitchDirPin, OUTPUT);
-  pinMode (pitchStepPin, OUTPUT);
-  pinMode (yawDirPin, OUTPUT);
-  pinMode (yawStepPin, OUTPUT);
-  pinMode (pitchUp, INPUT);
-  pinMode (pitchDown, INPUT);
-  pinMode (yawLeft, INPUT);
-  pinMode (yawRight, INPUT);
-}
-void loop() {
-  checkPitchUp();
-  checkPitchDown();
-  checkYawLeft();
-  checkYawRight();
-  // checkAuthnomous();
-}
+
+
+//void checkAutonomous() {}
