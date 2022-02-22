@@ -14,18 +14,18 @@
  * One button that will switch the sub into autonomous mode and the sub will make course adjustments using the gyro scope
  * The switch turns the mode on and off
  */
-// Gyro
-// 2 stepper motors (Step Pulse Control and Direction Control)
-// Define pins
+// Gyro & 2 Pressure sensors & 2 rpm sensors & 2 motor controllers
 
+// Define pins
 #include "I2Cdev.h"
 
 #define pitchDirPin 2
 #define pitchStepPin 3
-#define yawDirPin 4
-#define yawStepPin 5
 #define pitchUp 6
 #define pitchDown 7
+
+#define yawDirPin 4
+#define yawStepPin 5
 #define yawLeft 8
 #define yawRight 9
 
@@ -68,15 +68,15 @@ void dmpDataReady() {
  
 
 // Variables
-int pd = 250; // Pulse Delay period (Sensativity of motor)
+int pd = 250; // Pulse Delay period (Sensitivity of motor)
 
 boolean setPitchDir = LOW; // Set Pitch Direction
 boolean setYawDir = LOW; // Set Pitch Direction
 
-const int dataINA = 11; //RPM sensor
-const int dataINC = 12; //RPM sensor 2
-const int dataINB = A1; //Proximity sensor
-const int dataIND = A0; //Proximity sensor
+const int dataINA_RPM = 11; //RPM sensor 1
+const int dataINC_RPM = 12; //RPM sensor 2
+const int dataINB_PS = A1; //Pressure sensor
+const int dataIND_PS = A0; //Pressure sensor
 
 unsigned long prevmillis; // To store time
 unsigned long duration; // To store time difference
@@ -84,13 +84,14 @@ unsigned long refresh; // To store time for refresh of reading
 
 int rpmA; // RPM from sensor A value
 int rpmB; // RPM from sensor 2 value
-int avg_rpm;
-int pressure_voltage;
+int avg_rpm; // average rpm reading
+int pressure_voltage; // pressure sensor voltage 
 
-boolean currentstateA; // Current state of PSA input scan
-boolean prevstateA; // State of PSA sensor in previous scan
-boolean currentstateB; // Current state of PSA input scan
-boolean prevstateB; // State of PSA sensor in previous scan
+boolean currentstateA; // Current state of RPMA input scan
+boolean prevstateA; // State of RPMA sensor in previous scan
+boolean currentstateB; // Current state of RPMB input scan
+boolean prevstateB; // State of RPMB sensor inBprevious scan
+
 
 void setup() {
     // Set up for the debugging serial monitor
@@ -98,7 +99,8 @@ void setup() {
 
     // configure LED for output
     pinMode(LED_PIN, OUTPUT);
-
+    
+    // set up the buttons for the motors
     pinMode(pitchDirPin, OUTPUT);
     pinMode(pitchStepPin, OUTPUT);
     pinMode(yawDirPin, OUTPUT);
@@ -108,15 +110,20 @@ void setup() {
     pinMode(pitchDown, INPUT);
     pinMode(yawLeft, INPUT);
     pinMode(yawRight, INPUT);
-    pinMode(dataINB,INPUT);
-    pinMode(dataIND,INPUT);
+    
+    // set up for the pressure sensor readings
+    pinMode(dataINB_PS,INPUT);
+    pinMode(dataIND_PS,INPUT);
 
-    // Set up for the RPM sensor readings
-    pinMode(dataINA,INPUT);    
-    pinMode(dataINC,INPUT);
+    // set up for the RPM sensor readings
+    pinMode(dataINA_RPM,INPUT);    
+    pinMode(dataINC_RPM,INPUT);
     
     prevmillis = 0;
-    prevstateA = LOW;  
+    prevstateA = LOW; 
+
+    // STUFF FROM THE MPU6050 Lib for calculating the pitch/roll/yaw
+    
     // join I2C bus (I2Cdev library doesn't do this automatically)
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.begin();
@@ -149,8 +156,8 @@ void setup() {
         // get expected DMP packet size for later comparison
         packetSize = mpu.dmpGetFIFOPacketSize();
     }
+    // END OF STUFF FROM THE MPU6050 Lib for calculating the pitch/roll/yaw
     
-
 }
 
 
@@ -165,16 +172,87 @@ void loop() {
    rpm_value();
    Serial.print("#");
    gyro();
+   Serial.println("#");
    delay(20);
 }
 
 
 void pressure() {
-      int sensorVal=analogRead(dataINB);
-      int sensorVal2=analogRead(dataIND);
+      int sensorVal=analogRead(dataINB_PS);
+      int sensorVal2=analogRead(dataIND_PS);
 
       pressure_voltage = (sensorVal + sensorVal2) / 2;
       Serial.print(pressure_voltage);
+}
+
+
+void rpm_value()
+{   
+   // RPMA Measurement
+   currentstateA = digitalRead(dataINA_RPM); // Read RPMA sensor state
+   if( prevstateA != currentstateA) // If there is change in input
+     {
+       if( currentstateA == HIGH ) // If input only changes from LOW to HIGH
+         {
+           duration = ( micros() - prevmillis ); // Time difference between revolution in microsecond
+           rpmA = (60000000/duration); // rpm = (1/ time millis)*1000*1000*60;
+           prevmillis = micros(); // store time for nect revolution calculation
+         }
+       else
+        {
+        rpmA = 0;
+        }
+     }
+ 
+    prevstateA = currentstateA; // store this scan (prev scan) data for next scan
+  
+   // RPMB Measurement
+   currentstateB = digitalRead(dataINC_RPM); // Read RPMB sensor state
+   if( prevstateB != currentstateB) // If there is change in input
+     {
+       if( currentstateB == HIGH ) // If input only changes from LOW to HIGH
+         {
+           duration = ( micros() - prevmillis ); // Time difference between revolution in microsecond
+           rpmB = (60000000/duration); // rpm = (1/ time millis)*1000*1000*60;
+           prevmillis = micros(); // store time for next revolution calculation
+         }
+        else
+         {
+           rpmB = 0;
+         }
+     }
+    prevstateB = currentstateB; // store this scan (prev scan) data for next scan
+  
+    // Calculating average rpm 
+    avg_rpm = (rpmA + rpmB) / 2;
+    Serial.print(avg_rpm);
+}
+
+
+void gyro() {
+    // if programming failed, don't try to do anything
+    if (!dmpReady) return;
+    // read a packet from FIFO
+    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
+
+        #ifdef OUTPUT_READABLE_YAWPITCHROLL
+            // display Euler angles in degrees
+            mpu.dmpGetQuaternion(&q, fifoBuffer);
+            mpu.dmpGetGravity(&gravity, &q);
+            mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+            //Serial.print("pry\t"); 
+            Serial.print(ypr[2] * 180/M_PI); //pitch           
+            //Serial.print("#");
+            //Serial.print(ypr[1] * 180/M_PI); //roll
+            Serial.print("#");
+            Serial.print(ypr[0] * 180/M_PI); //yaw
+                                
+        #endif
+
+        // blink LED to indicate activity
+        blinkState = !blinkState;
+        digitalWrite(LED_PIN, blinkState);
+  }
 }
 
 
@@ -258,75 +336,5 @@ void checkYawRight() {
   }
   else {
     return;
-  }
-}
-
-
-void rpm_value()
-{   
-   // RPMA Measurement
-   currentstateA = digitalRead(dataINA); // Read RPMA sensor state
-   if( prevstateA != currentstateA) // If there is change in input
-     {
-       if( currentstateA == HIGH ) // If input only changes from LOW to HIGH
-         {
-           duration = ( micros() - prevmillis ); // Time difference between revolution in microsecond
-           rpmA = (60000000/duration); // rpm = (1/ time millis)*1000*1000*60;
-           prevmillis = micros(); // store time for nect revolution calculation
-         }
-       else
-        {
-        rpmA = 0;
-        }
-     }
- 
-    prevstateA = currentstateA; // store this scan (prev scan) data for next scan
-  
-   // RPMB Measurement
-   currentstateB = digitalRead(dataINB); // Read PSB sensor state
-   if( prevstateB != currentstateB) // If there is change in input
-     {
-       if( currentstateB == HIGH ) // If input only changes from LOW to HIGH
-         {
-           duration = ( micros() - prevmillis ); // Time difference between revolution in microsecond
-           rpmB = (60000000/duration); // rpm = (1/ time millis)*1000*1000*60;
-           prevmillis = micros(); // store time for next revolution calculation
-         }
-        else
-         {
-           rpmB = 0;
-         }
-     }
-    prevstateB = currentstateB; // store this scan (prev scan) data for next scan
-  
-    // Calculating average rpm 
-    avg_rpm = (rpmA + rpmB) / 2;
-    Serial.print(avg_rpm);
-}
-
-
-void gyro() {
-    // if programming failed, don't try to do anything
-    if (!dmpReady) return;
-    // read a packet from FIFO
-    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
-
-        #ifdef OUTPUT_READABLE_YAWPITCHROLL
-            // display Euler angles in degrees
-            mpu.dmpGetQuaternion(&q, fifoBuffer);
-            mpu.dmpGetGravity(&gravity, &q);
-            mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-            //Serial.print("pry\t"); 
-            Serial.print(ypr[2] * 180/M_PI); //pitch           
-            //Serial.print("#");
-            //Serial.print(ypr[1] * 180/M_PI); //roll
-            Serial.print("#");
-            Serial.println(ypr[0] * 180/M_PI); //yaw
-                                
-        #endif
-
-        // blink LED to indicate activity
-        blinkState = !blinkState;
-        digitalWrite(LED_PIN, blinkState);
   }
 }
