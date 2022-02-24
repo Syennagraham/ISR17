@@ -78,7 +78,7 @@ const int dataINA_RPM = 11; //RPM sensor 1
 const int dataINC_RPM = 12; //RPM sensor 2
 const int dataINB_PS = A1; //Pressure sensor
 const int dataIND_PS = A0; //Pressure sensor
-const int buttonPin = 2; 
+const int buttonPin = A2; 
 
 unsigned long prevmillis; // To store time
 unsigned long duration; // To store time difference
