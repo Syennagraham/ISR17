@@ -23,7 +23,6 @@
 #define pitchStepPin 3
 #define pitchUp 6
 #define pitchDown 7
-
 #define yawDirPin 4
 #define yawStepPin 5
 #define yawLeft 8
@@ -79,6 +78,7 @@ const int dataINA_RPM = 11; //RPM sensor 1
 const int dataINC_RPM = 12; //RPM sensor 2
 const int dataINB_PS = A1; //Pressure sensor
 const int dataIND_PS = A0; //Pressure sensor
+const int buttonPin = 2; 
 
 unsigned long prevmillis; // To store time
 unsigned long duration; // To store time difference
@@ -88,80 +88,24 @@ int rpmA; // RPM from sensor A value
 int rpmB; // RPM from sensor 2 value
 int avg_rpm; // average rpm reading
 int pressure_voltage; // pressure sensor voltage 
+int time;
+int voltage;
+bool doLoop = false;
+
+bool state = false;
+int startTime = 0;
+int endTime = 0;
+int totalTime = 0;
 
 boolean currentstateA; // Current state of RPMA input scan
 boolean prevstateA; // State of RPMA sensor in previous scan
 boolean currentstateB; // Current state of RPMB input scan
 boolean prevstateB; // State of RPMB sensor inBprevious scan
 
-
-void setup() {
-    // Set up for the debugging serial monitor
-    Serial.begin(9600); //Start serial communication at 9600 for debug statements
-
-    // configure LED for output
-    // pinMode(LED_PIN, OUTPUT);
-    
-    // set up the buttons for the motors
-    pinMode(pitchDirPin, OUTPUT);
-    pinMode(pitchStepPin, OUTPUT);
-    pinMode(yawDirPin, OUTPUT);
-    pinMode(yawStepPin, OUTPUT);
-    
-    pinMode(pitchUp, INPUT);
-    pinMode(pitchDown, INPUT);
-    pinMode(yawLeft, INPUT);
-    pinMode(yawRight, INPUT);
-    
-    // set up for the pressure sensor readings
-    pinMode(dataINB_PS,INPUT);
-    pinMode(dataIND_PS,INPUT);
-
-    // set up for the RPM sensor readings
-    pinMode(dataINA_RPM,INPUT);    
-    pinMode(dataINC_RPM,INPUT);
-    prevmillis = 0;
-    prevstateA = LOW; 
-
-    // STUFF FROM THE MPU6050 Lib for calculating the pitch/roll/yaw
-    // join I2C bus (I2Cdev library doesn't do this automatically)
-    #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-        Wire.begin();
-        Wire.setClock(400000); // 400kHz I2C clock. Comment this line if having compilation difficulties
-    #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-        Fastwire::setup(400, true);
-    #endif
-
-    while (!Serial); // wait for Leonardo enumeration, others continue immediately
-
-    mpu.initialize();
-    pinMode(INTERRUPT_PIN, INPUT);
-    devStatus = mpu.dmpInitialize();
-
-    // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(220);
-    mpu.setYGyroOffset(76);
-    mpu.setZGyroOffset(-85);
-    mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
-    
-    if (devStatus == 0) {
-        // Calibration Time: generate offsets and calibrate our MPU6050
-        mpu.CalibrateAccel(6);
-        mpu.CalibrateGyro(6);
-        mpu.setDMPEnabled(true);
-        attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
-        mpuIntStatus = mpu.getIntStatus();
-        dmpReady = true;
-
-        // get expected DMP packet size for later comparison
-        packetSize = mpu.dmpGetFIFOPacketSize();
-    }
-    // END OF STUFF FROM THE MPU6050 Lib for calculating the pitch/roll/yaw
-    
-}
-
-
-
+void timeSinceStart(){
+    time = millis()/1000;
+    Serial.println(time);
+  }
 
 
 void pressure() {
@@ -326,26 +270,127 @@ void checkYawRight() {
   }
 }
 
-void loop() {
-   checkPitchUp();
-   checkPitchDown();
-   checkYawLeft();
-   checkYawRight();
-   
-   pressure();
-   Serial.print("#");
-   rpm_value();
-   Serial.print("#");
-   gyro();
-   delay(200);
 
-   
-   count = count + 1;
-   //Serial.print(count);
-   //Serial.print(":");
-   if (count == 500) {
-    void (*reboot)(void) = 0; // Creating a function pointer to address 0 then calling it reboots the board.
-    reboot();
+void battery_voltage(){
+    voltage = random(0,12);
+    Serial.print(voltage);
 }
+
+
+void setup() {
+    // Set up for the debugging serial monitor
+    Serial.begin(9600); //Start serial communication at 9600 for debug statements
+
+    // configure LED for output
+    // pinMode(LED_PIN, OUTPUT);
+    
+    // set up the buttons for the motors
+    pinMode(pitchDirPin, OUTPUT);
+    pinMode(pitchStepPin, OUTPUT);
+    pinMode(yawDirPin, OUTPUT);
+    pinMode(yawStepPin, OUTPUT);
+    
+    pinMode(pitchUp, INPUT);
+    pinMode(pitchDown, INPUT);
+    pinMode(yawLeft, INPUT);
+    pinMode(yawRight, INPUT);
+
+    // initialize the pushbutton pin as an input:
+    pinMode(buttonPin, INPUT);
+    
+    // set up for the pressure sensor readings
+    pinMode(dataINB_PS,INPUT);
+    pinMode(dataIND_PS,INPUT);
+
+    // set up for the RPM sensor readings
+    pinMode(dataINA_RPM,INPUT);    
+    pinMode(dataINC_RPM,INPUT);
+    prevmillis = 0;
+    prevstateA = LOW; 
+
+    // STUFF FROM THE MPU6050 Lib for calculating the pitch/roll/yaw
+    // join I2C bus (I2Cdev library doesn't do this automatically)
+    #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+        Wire.begin();
+        Wire.setClock(400000); // 400kHz I2C clock. Comment this line if having compilation difficulties
+    #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+        Fastwire::setup(400, true);
+    #endif
+
+    while (!Serial); // wait for Leonardo enumeration, others continue immediately
+
+    mpu.initialize();
+    pinMode(INTERRUPT_PIN, INPUT);
+    devStatus = mpu.dmpInitialize();
+
+    // supply your own gyro offsets here, scaled for min sensitivity
+    mpu.setXGyroOffset(220);
+    mpu.setYGyroOffset(76);
+    mpu.setZGyroOffset(-85);
+    mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
+    
+    if (devStatus == 0) {
+        // Calibration Time: generate offsets and calibrate our MPU6050
+        mpu.CalibrateAccel(6);
+        mpu.CalibrateGyro(6);
+        mpu.setDMPEnabled(true);
+        attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
+        mpuIntStatus = mpu.getIntStatus();
+        dmpReady = true;
+
+        // get expected DMP packet size for later comparison
+        packetSize = mpu.dmpGetFIFOPacketSize();
+    }
+    // END OF STUFF FROM THE MPU6050 Lib for calculating the pitch/roll/yaw
+    
+}
+
+
+void loop() {
+
+  if (digitalRead(buttonPin) &&  state == false) {
+    state = true;
+    startTime = millis();
+    //Serial.println("button pressed");
+  } 
+  
+  else if (state == true && !digitalRead(buttonPin)) {
+    state = false;
+    endTime = millis();
+    totalTime = endTime - startTime;
+    if (totalTime >= 1000) {
+      if (doLoop) {
+        doLoop = false;
+      } else {
+        doLoop = true;
+      }
+    }
+  }
+  
+  if (doLoop == true) {
+    checkPitchUp();
+    checkPitchDown();
+    checkYawLeft();
+    checkYawRight();
+
+    pressure();
+    Serial.print("#");
+    rpm_value();
+    Serial.print("#");
+    gyro();
+    Serial.print("#");
+    battery_voltage();
+    Serial.print("#");
+    timeSinceStart();
+
+    //put this function back in if sensors stall again
+//    count = count + 1;
+//    if (count == 500) {
+//      void (*reboot)(void) = 0; // Creating a function pointer to address 0 then calling it reboots the board.
+//      reboot();
+//        
+//      }
+
+    }
 
 }
