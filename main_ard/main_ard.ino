@@ -29,6 +29,7 @@
 #define yawLeft 8
 #define yawRight 9
 
+
 #include "MPU6050_6Axis_MotionApps20.h"
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
     #include "Wire.h"
@@ -37,8 +38,8 @@
 MPU6050 mpu;
 
 #define OUTPUT_READABLE_YAWPITCHROLL
-#define INTERRUPT_PIN 1  // use pin 2 on Arduino Uno & most boards
-#define LED_PIN 13 // (Arduino is 13, Teensy is 11, Teensy++ is 6)
+#define INTERRUPT_PIN 2  // use pin 2 on Arduino Uno & most boards
+//#define LED_PIN 13 // (Arduino is 13)
 bool blinkState = false;
 
 // MPU control/status vars
@@ -69,6 +70,7 @@ void dmpDataReady() {
 
 // Variables
 int pd = 250; // Pulse Delay period (Sensitivity of motor)
+int count = 0;
 
 boolean setPitchDir = LOW; // Set Pitch Direction
 boolean setYawDir = LOW; // Set Pitch Direction
@@ -98,7 +100,7 @@ void setup() {
     Serial.begin(9600); //Start serial communication at 9600 for debug statements
 
     // configure LED for output
-    pinMode(LED_PIN, OUTPUT);
+    // pinMode(LED_PIN, OUTPUT);
     
     // set up the buttons for the motors
     pinMode(pitchDirPin, OUTPUT);
@@ -118,12 +120,10 @@ void setup() {
     // set up for the RPM sensor readings
     pinMode(dataINA_RPM,INPUT);    
     pinMode(dataINC_RPM,INPUT);
-    
     prevmillis = 0;
     prevstateA = LOW; 
 
     // STUFF FROM THE MPU6050 Lib for calculating the pitch/roll/yaw
-    
     // join I2C bus (I2Cdev library doesn't do this automatically)
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.begin();
@@ -161,20 +161,7 @@ void setup() {
 }
 
 
-void loop() {
-   checkPitchUp();
-   checkPitchDown();
-   checkYawLeft();
-   checkYawRight();
-   
-   pressure();
-   Serial.print("#");
-   rpm_value();
-   Serial.print("#");
-   gyro();
-   Serial.println("#");
-   delay(20);
-}
+
 
 
 void pressure() {
@@ -245,13 +232,13 @@ void gyro() {
             //Serial.print("#");
             //Serial.print(ypr[1] * 180/M_PI); //roll
             Serial.print("#");
-            Serial.print(ypr[0] * 180/M_PI); //yaw
+            Serial.println(ypr[0] * 180/M_PI); //yaw
                                 
         #endif
 
         // blink LED to indicate activity
-        blinkState = !blinkState;
-        digitalWrite(LED_PIN, blinkState);
+        //blinkState = !blinkState;
+        //digitalWrite(LED_PIN, blinkState);
   }
 }
 
@@ -337,4 +324,28 @@ void checkYawRight() {
   else {
     return;
   }
+}
+
+void loop() {
+   checkPitchUp();
+   checkPitchDown();
+   checkYawLeft();
+   checkYawRight();
+   
+   pressure();
+   Serial.print("#");
+   rpm_value();
+   Serial.print("#");
+   gyro();
+   delay(200);
+
+   
+   count = count + 1;
+   //Serial.print(count);
+   //Serial.print(":");
+   if (count == 500) {
+    void (*reboot)(void) = 0; // Creating a function pointer to address 0 then calling it reboots the board.
+    reboot();
+}
+
 }
