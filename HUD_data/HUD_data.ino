@@ -36,7 +36,8 @@ volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin h
 void dmpDataReady() {
     mpuInterrupt = true;
 }
- 
+
+// constants for RPM sensors 
 const int dataINA = 3; //RPM Sensor
 const int dataINC = 4; //RMP sensor 2
 const int dataINB = A1; //Proximity sensor
@@ -51,6 +52,7 @@ int rpmB; // RPM from sensor 2 value
 int avg_rpm;
 int pressure_voltage;
 
+// constants for the pressure sensors
 boolean currentstateA; // Current state of PSA input scan
 boolean prevstateA; // State of PSA sensor in previous scan
 boolean currentstateB; // Current state of PSA input scan
@@ -60,6 +62,7 @@ void setup() {
     // Set up for the debugging serial monitor
     Serial.begin(9600); //Start serial communication at 9600 for debug statements
 
+    // Set up for pressure sensor readings
     pinMode(dataINB,INPUT);
     pinMode(dataIND,INPUT);
 
@@ -68,6 +71,8 @@ void setup() {
     pinMode(dataINC,INPUT);
     prevmillis = 0;
     prevstateA = LOW;  
+    
+    // Set up for gyro 
     // join I2C bus (I2Cdev library doesn't do this automatically)
     #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.begin();
@@ -82,19 +87,16 @@ void setup() {
     pinMode(INTERRUPT_PIN, INPUT);
     devStatus = mpu.dmpInitialize();
 
-    // supply your own gyro offsets here, scaled for min sensitivity
     mpu.setXGyroOffset(220);
     mpu.setYGyroOffset(76);
     mpu.setZGyroOffset(-85);
-    mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
+    mpu.setZAccelOffset(1788);
+    
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
         // Calibration Time: generate offsets and calibrate our MPU6050
         mpu.CalibrateAccel(6);
         mpu.CalibrateGyro(6);
-        // mpu.PrintActiveOffsets();
-        // turn on the DMP, now that it's ready
-        //Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
         attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
@@ -117,7 +119,10 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
 }
 
-
+/*
+ * Constant loop to print out data for GUI.
+ * pressure#rpm#pitch#yaw
+ */
 void loop() {
    pressure();
    Serial.print("#");
@@ -128,6 +133,9 @@ void loop() {
 }
 
 
+/*
+ * Obtain data from two pressure sensors and take the average.
+ */
 void pressure() {
       int sensorVal=analogRead(dataINB);
       int sensorVal2=analogRead(dataIND);
@@ -136,7 +144,13 @@ void pressure() {
       Serial.print(pressure_voltage);
 }
 
-
+/*
+ * Obtain data from two RPM sensors 
+ * RPM sensors are magnets that report 1 
+ * everytime a piece of metal is in front of it. 
+ * 
+ * Use two RPM sensors to take the average.
+ */
 void rpm_value()
 {   
    // RPMA Measurement
@@ -179,9 +193,11 @@ void rpm_value()
     Serial.print(avg_rpm);
 }
 
-
+/*
+ *  Obtain data from the gyro
+ */
 void gyro() {
-    // if programming failed, don't try to do anything
+  
     if (!dmpReady) return;
     // read a packet from FIFO
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
