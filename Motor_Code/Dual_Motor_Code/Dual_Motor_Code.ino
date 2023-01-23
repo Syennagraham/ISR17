@@ -41,6 +41,10 @@ boolean buttonDownPushed = false;
 boolean pitchButtonPushed = false;
 boolean yawButtonPushed = false;
 
+// Motor current setting variable
+boolean pitchSetHigh = false;
+boolean yawSetHigh = false;
+
 /*
  * Pulse timing
  * 
@@ -50,14 +54,15 @@ boolean yawButtonPushed = false;
  * 500 = moderate fast
  * 250 = fast
  */
-unsigned long microsBetweenSteps = 750; // microseconds
-unsigned long currMicros;
+unsigned long microsBetweenSteps = 500; // microseconds
+unsigned long currMicros = 0;
 unsigned long prevStepMicros = 0;
 
 /*
  * Set pins as output and input
  */
 void setup() {
+  Serial.begin(115200);
   pinMode (pitchDirPin, OUTPUT);
   pinMode (pitchStepPin, OUTPUT);
   pinMode (yawDirPin, OUTPUT);
@@ -139,12 +144,21 @@ void runMotors() {
     if (pitchButtonPushed) {
       digitalWrite(pitchDirPin, setPitchDir);
       digitalWrite(pitchStepPin, HIGH);
-      digitalWrite(pitchStepPin, LOW);
+      pitchSetHigh = true;
     }
+    if (pitchSetHigh) {
+      digitalWrite(pitchStepPin, LOW);
+      pitchSetHigh = false;
+    }
+    
     if (yawButtonPushed) {
       digitalWrite(yawDirPin, setYawDir);
       digitalWrite(yawStepPin, HIGH);
+      yawSetHigh = true;
+    }
+    if (yawSetHigh) {
       digitalWrite(yawStepPin, LOW);
+      yawSetHigh = false;
     }
   }
 }
