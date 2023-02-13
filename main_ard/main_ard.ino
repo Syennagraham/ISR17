@@ -302,7 +302,7 @@ void battery_voltage(){
 
 void setup() {
     // Set up for the debugging serial monitor
-    Serial.begin(115200); //Start serial communication for debug statements
+    Serial.begin(19200); //Start serial communication for debug statements
 
     // configure LED for output
     // pinMode(LED_PIN, OUTPUT);

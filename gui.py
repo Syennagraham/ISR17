@@ -22,7 +22,7 @@ depth_graphic_coord = 0
 
 ######### CONNECT WITH ARDUINO ######################################################################################
 
-arduino = serial.Serial(USB, 115200, timeout=.1)
+arduino = serial.Serial(USB, 19200, timeout=0)
 
 def read_arduino():
     return arduino.readline()[:-2] #the last bit gets rid of the new-line chars
