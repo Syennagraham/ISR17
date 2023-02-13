@@ -129,8 +129,7 @@ boolean prevstateB; // State of RPMB sensor inBprevious scan
 
 void timeSinceStart(){
     time = millis()/1000;
-    Serial.println(time);
-  }
+}
 
 
 void pressure() {
@@ -303,7 +302,7 @@ void battery_voltage(){
 
 void setup() {
     // Set up for the debugging serial monitor
-    Serial.begin(115200); //Start serial communication for debug statements
+    Serial.begin(9600); //Start serial communication for debug statements
 
     // configure LED for output
     // pinMode(LED_PIN, OUTPUT);
