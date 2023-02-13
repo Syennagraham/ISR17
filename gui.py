@@ -22,7 +22,7 @@ depth_graphic_coord = 0
 
 ######### CONNECT WITH ARDUINO ######################################################################################
 
-arduino = serial.Serial(USB, 19200, timeout=0)
+arduino = serial.Serial(USB, 115200, timeout=0)
 
 def read_arduino():
     return arduino.readline()[:-2] #the last bit gets rid of the new-line chars
@@ -237,6 +237,7 @@ def read_sensor_data():
     global rpm_graphic_coord
     global gyro_list
     serial_list = []
+    serial_list_backup = [0,0,0,0]
 
     while True:
         data = read_arduino()
@@ -247,15 +248,19 @@ def read_sensor_data():
             print('data2 ', data)
             continue
         else:    
-            for x in serial_string.split('#'):
-                if x != '':
-                    serial_list.append(float(x)) 
-                else:
-                    serial_list.append(0)
-            print("Original Serial List: ", serial_list)
-            if len(serial_list) != 4 and len(serial_list) != 5:
-                serial_list = [0,0,0,0]
-            print('serial data list: ', serial_list)
+            if "!" not in serial_string.split("#"):
+                for x in serial_string.split('#'):
+                    if x != '':
+                        serial_list.append(float(x)) 
+                    else:
+                        serial_list.append(0)
+                print("Original Serial List: ", serial_list)
+                if len(serial_list) != 4 and len(serial_list) != 5:
+                    serial_list = [0,0,0,0]
+                print('serial data list: ', serial_list)
+                serial_list_backup = serial_list.copy()
+            else:
+                serial_list = serial_list_backup.copy()
             
             filtered_gyro_values = filter_gyro_coord(serial_list) # make sure gyro data is between -90 and 90
             print('serial list with filtered gyro values: ', filtered_gyro_values) 
