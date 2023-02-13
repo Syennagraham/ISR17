@@ -277,8 +277,8 @@ if '__main__' == __name__:
     # heading elements
 
     # random data testing 
-    th = threading.Thread(target=get_random_xy_coord, args=(),  daemon=True)
-    #th = threading.Thread(target=read_sensor_data, args=(),  daemon=True)
+    #th = threading.Thread(target=get_random_xy_coord, args=(),  daemon=True)
+    th = threading.Thread(target=read_sensor_data, args=(),  daemon=True)
     th.start()
 
     update_gui()
