@@ -402,8 +402,8 @@ void loop() {
     rpm_value();
     Serial.print("#");
     gyro();
-    Serial.print("#");
-    battery_voltage();
+    //Serial.print("#");
+    //battery_voltage();
     //Serial.print("#");
     //timeSinceStart();
 
