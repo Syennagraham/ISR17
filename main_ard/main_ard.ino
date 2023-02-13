@@ -186,7 +186,10 @@ void rpm_value()
 
 void gyro() {
     // if programming failed, don't try to do anything
-    if (!dmpReady) return;
+    if (!dmpReady) {
+      Serial.println("!#!");
+      return;
+    }
     // read a packet from FIFO
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
 
@@ -207,7 +210,10 @@ void gyro() {
         // blink LED to indicate activity
         //blinkState = !blinkState;
         //digitalWrite(LED_PIN, blinkState);
-  }
+    }
+    else {
+      Serial.println("!#!");
+    }
 }
 
 
@@ -302,7 +308,7 @@ void battery_voltage(){
 
 void setup() {
     // Set up for the debugging serial monitor
-    Serial.begin(19200); //Start serial communication for debug statements
+    Serial.begin(115200); //Start serial communication for debug statements
 
     // configure LED for output
     // pinMode(LED_PIN, OUTPUT);
