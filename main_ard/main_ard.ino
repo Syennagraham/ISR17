@@ -405,8 +405,8 @@ void loop() {
     gyro();
     Serial.print("#");
     battery_voltage();
-    Serial.print("#");
-    timeSinceStart();
+    //Serial.print("#");
+    //timeSinceStart();
 
     //put this function back in if sensors stall again
 //    count = count + 1;
