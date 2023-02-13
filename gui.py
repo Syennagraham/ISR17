@@ -248,10 +248,12 @@ def read_sensor_data():
             continue
         else:    
             for x in serial_string.split('#'):
-                if float(x):
+                if x != '':
                     serial_list.append(float(x)) 
                 else:
                     serial_list.append(0)
+            if len(serial_list) != 4:
+                serial_list = [0,0,0,0]
             print('serial data list: ', serial_list)
             
             filtered_gyro_values = filter_gyro_coord(serial_list) # make sure gyro data is between -90 and 90
