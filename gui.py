@@ -252,6 +252,7 @@ def read_sensor_data():
                     serial_list.append(float(x)) 
                 else:
                     serial_list.append(0)
+            print("Original Serial List: ", serial_list)
             if len(serial_list) != 4:
                 serial_list = [0,0,0,0]
             print('serial data list: ', serial_list)
