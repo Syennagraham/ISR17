@@ -248,10 +248,10 @@ def read_sensor_data():
             continue
         else:    
             for x in serial_string.split('#'):
-                if x == '':
-                    serial_list.append(0) 
+                if x != '':
+                    serial_list.append(float(x)) 
                 else:
-                    serial_list.append(float(x))
+                    serial_list.append(0)
             print("Original Serial List: ", serial_list)
             if len(serial_list) != 4 and len(serial_list) != 5:
                 serial_list = [0,0,0,0]
