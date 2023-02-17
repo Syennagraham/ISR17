@@ -67,12 +67,37 @@ void dmpDataReady() {
 }
  
 
-// Variables
-int pd = 250; // Pulse Delay period (Sensitivity of motor)
-int count = 0;
-
+// Motor Variables
+// Direction variables
 boolean setPitchDir = LOW; // Set Pitch Direction
-boolean setYawDir = LOW; // Set Pitch Direction
+boolean setYawDir = LOW; // Set Yaw Direction
+
+// Button variables
+boolean buttonLeftPushed = false;
+boolean buttonRightPushed = false;
+boolean buttonUpPushed = false;
+boolean buttonDownPushed = false;
+
+// Button pushed variables
+boolean pitchButtonPushed = false;
+boolean yawButtonPushed = false;
+
+// Motor current setting variable
+boolean pitchSetHigh = false;
+boolean yawSetHigh = false;
+
+/*
+ * Pulse timing
+ * 
+ * Pulse Settings in microseconds (microsBetweenSteps)
+ * 1000 = slow
+ * 750 = moderate slow
+ * 500 = moderate fast
+ * 250 = fast
+ */
+unsigned long microsBetweenSteps = 1000; // microseconds
+unsigned long currMicros = 0;
+unsigned long prevStepMicros = 0;
 
 const int dataINA_RPM = 11; //RPM sensor 1
 const int dataINC_RPM = 12; //RPM sensor 2
@@ -104,8 +129,7 @@ boolean prevstateB; // State of RPMB sensor inBprevious scan
 
 void timeSinceStart(){
     time = millis()/1000;
-    Serial.println(time);
-  }
+}
 
 
 void pressure() {
@@ -162,7 +186,10 @@ void rpm_value()
 
 void gyro() {
     // if programming failed, don't try to do anything
-    if (!dmpReady) return;
+    if (!dmpReady) {
+      Serial.println("!#!");
+      return;
+    }
     // read a packet from FIFO
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet 
 
@@ -183,90 +210,92 @@ void gyro() {
         // blink LED to indicate activity
         //blinkState = !blinkState;
         //digitalWrite(LED_PIN, blinkState);
-  }
-}
-
-
-void checkPitchUp() {
-  boolean mode = digitalRead(pitchUp);
-  if (mode == HIGH) {
-    setPitchDir = HIGH; //Clockwise
-    while (mode == HIGH) {
-      digitalWrite(pitchDirPin, setPitchDir);
-      digitalWrite(pitchStepPin, HIGH);
-      delayMicroseconds(pd);
-      digitalWrite(pitchStepPin, LOW);
-      delayMicroseconds(pd);
-      
-      mode = digitalRead(pitchUp);
     }
-    return;
-  }
-  else {
-    return;
-  }
-}
-
-
-void checkPitchDown() {
-  boolean mode = digitalRead(pitchDown);
-  if (mode == HIGH) {
-    setPitchDir = LOW; //Counter Clockwise
-    while (mode == HIGH) {
-      digitalWrite(pitchDirPin, setPitchDir);
-      digitalWrite(pitchStepPin, HIGH);
-      delayMicroseconds(pd);
-      digitalWrite(pitchStepPin, LOW);
-      delayMicroseconds(pd);
-      
-      mode = digitalRead(pitchDown);
+    else {
+      Serial.println("!#!");
     }
-    return;
+}
+
+
+/*
+ * Read buttons and set pushed to true if pins are HIGH
+ */
+void readButtons() {
+  buttonLeftPushed = false;
+  buttonRightPushed = false;
+  buttonUpPushed = false;
+  buttonDownPushed = false;
+  pitchButtonPushed = false;
+  yawButtonPushed = false;
+
+  if (digitalRead(yawLeft) == HIGH) {
+    buttonLeftPushed = true;
+    yawButtonPushed = true;
   }
-  else {
-    return;
+  if (digitalRead(yawRight) == HIGH) {
+    buttonRightPushed = true;
+    yawButtonPushed = true;
+  }
+  if (digitalRead(pitchUp) == HIGH) {
+    buttonUpPushed = true;
+    pitchButtonPushed = true;
+  }
+  if (digitalRead(pitchDown) == HIGH) {
+    buttonDownPushed = true;
+    pitchButtonPushed = true;
   }
 }
 
 
-void checkYawLeft() {
-  boolean mode = digitalRead(yawLeft);
-  if (mode == HIGH) {
+/*
+ * Change directions of motor depending on which button is pushed
+ * 
+ * WARNING: If right and left or up and down are pressed at the same time
+ *          up and left will take precendent 
+ */
+void setDirections() {
+  if (buttonLeftPushed) {
     setYawDir = HIGH; //Clockwise
-    while (mode == HIGH) {
-      digitalWrite(yawDirPin, setYawDir);
-      digitalWrite(yawStepPin, HIGH);
-      delayMicroseconds(pd);
-      digitalWrite(yawStepPin, LOW);
-      delayMicroseconds(pd);
-      
-      mode = digitalRead(yawLeft);
-    }
-    return;
   }
-  else {
-    return;
+  else if (buttonRightPushed) {
+    setYawDir = LOW; //Counter Clockwise
+  }
+
+  if (buttonUpPushed) {
+    setPitchDir = HIGH; //Clockwise
+  }
+  else if (buttonDownPushed) {
+    setPitchDir = LOW; //Counter Clockwise
   }
 }
 
 
-void checkYawRight() {
-  boolean mode = digitalRead(yawRight);
-  if (mode == HIGH) {
-    setYawDir = LOW; //Counter Clockwise
-    while (mode == HIGH) {
+/*
+ * Run motors for one step depending on buttons pushed
+ */
+void runMotors() {
+  if ((currMicros - prevStepMicros) >= microsBetweenSteps) {
+    prevStepMicros = currMicros;
+
+    if (pitchButtonPushed && !pitchSetHigh) {
+      digitalWrite(pitchDirPin, setPitchDir);
+      digitalWrite(pitchStepPin, HIGH);
+      pitchSetHigh = true;
+    }
+    else if (pitchSetHigh) {
+      digitalWrite(pitchStepPin, LOW);
+      pitchSetHigh = false;
+    }
+    
+    if (yawButtonPushed && !yawSetHigh) {
       digitalWrite(yawDirPin, setYawDir);
       digitalWrite(yawStepPin, HIGH);
-      delayMicroseconds(pd);
-      digitalWrite(yawStepPin, LOW);
-      delayMicroseconds(pd);
-      
-      mode = digitalRead(yawRight);
+      yawSetHigh = true;
     }
-    return;
-  }
-  else {
-    return;
+    else if (yawSetHigh) {
+      digitalWrite(yawStepPin, LOW);
+      yawSetHigh = false;
+    }
   }
 }
 
@@ -279,7 +308,7 @@ void battery_voltage(){
 
 void setup() {
     // Set up for the debugging serial monitor
-    Serial.begin(9600); //Start serial communication at 9600 for debug statements
+    Serial.begin(115200); //Start serial communication for debug statements
 
     // configure LED for output
     // pinMode(LED_PIN, OUTPUT);
@@ -347,7 +376,13 @@ void setup() {
 
 
 void loop() {
+  // Motor Code
+  currMicros = micros();
+  readButtons();
+  setDirections();
+  runMotors();
 
+  // Sensor Code
   if (digitalRead(buttonPin) &&  state == false) {
     state = true;
     startTime = millis();
@@ -366,22 +401,17 @@ void loop() {
       }
     }
   }
-  
+  doLoop = true;
   if (doLoop == true) {
-    checkPitchUp();
-    checkPitchDown();
-    checkYawLeft();
-    checkYawRight();
-
     pressure();
     Serial.print("#");
     rpm_value();
     Serial.print("#");
     gyro();
-    Serial.print("#");
-    battery_voltage();
-    Serial.print("#");
-    timeSinceStart();
+    //Serial.print("#");
+    //battery_voltage();
+    //Serial.print("#");
+    //timeSinceStart();
 
     //put this function back in if sensors stall again
 //    count = count + 1;
