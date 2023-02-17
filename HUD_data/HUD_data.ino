@@ -60,7 +60,7 @@ boolean prevstateB; // State of PSA sensor in previous scan
 
 void setup() {
     // Set up for the debugging serial monitor
-    Serial.begin(9600); //Start serial communication at 9600 for debug statements
+    Serial.begin(115200); //Start serial communication at 9600 for debug statements
 
     // Set up for pressure sensor readings
     pinMode(dataINB,INPUT);
