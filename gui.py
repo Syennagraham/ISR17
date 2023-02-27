@@ -228,7 +228,10 @@ def get_random_xy_coord():
 
         decode_ps_voltage = random.randrange(0,1023)
         depth_indicator = convert_volts_to_coord(decode_ps_voltage) 
+# END OF FOR TESTING
 
+# CREATE A FILE FOR OUTPUTING SERIAL DATA FOR DATALOGGING
+output_file = open("serial_list.txt", "w")
 
 def read_sensor_data():
     global ps_value
@@ -279,6 +282,10 @@ def read_sensor_data():
             print('')
             print('')
             serial_list = []
+            # OUTPUT SERIAL DATA FOR DL
+            output_file.write(str(serial_list) + "\n")
+ 
+output_file.close()           
        
 
 if '__main__' == __name__:
